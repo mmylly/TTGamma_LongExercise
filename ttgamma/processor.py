@@ -105,6 +105,7 @@ class TTGammaProcessor(processor.ProcessorABC):
             'photon_chIso': hist.Hist("Counts", dataset_axis, chIso_axis, phoCategory_axis, lep_axis, systematic_axis),
 
             ## book histogram for photon/lepton mass in a 3j0t region
+            'photon_lepton_mass'     : hist.Hist("Counts", dataset_axis, mass_axis, phoCategory_axis, lep_axis, systematic_axis),
             'photon_lepton_mass_3j0t': hist.Hist("Counts", dataset_axis, mass_axis, phoCategory_axis, lep_axis, systematic_axis),
 
             ## book histogram for M3 variable
@@ -578,7 +579,7 @@ class TTGammaProcessor(processor.ProcessorABC):
             # a hadronic photon is a reconstructed photon which is matched to a generator level photon, but has a hadronic parent
             isHadPhoLoose = matchedPhoLoose & hadronicParentLoose
             # a misidentified electron is a reconstructed photon which is matched to a generator level electron
-            isMisIDeleLoose = matchedEle
+            isMisIDeleLoose = matchedEleLoose
             # a hadronic/fake photon is a reconstructed photon that does not fall within any of the above categories and has at least one loose photon
             isHadFakeLoose = ~(isMisIDeleLoose | isGenPhoLoose | isHadPhoLoose) & (ak.num(leadingPhotonLoose)==1)        
 
@@ -773,7 +774,7 @@ class TTGammaProcessor(processor.ProcessorABC):
                 #  the lepton selection, 4-jet 1-tag jet selection, and either the one-photon or loose-photon selections
                 #  ex: selection.all( *('LIST', 'OF', 'SELECTION', 'CUTS') )
                 phosel = selection.all(*(lepSel, 'jetSel', 'onePho'))
-                phoselLoose = selection.all(*(lepSel, 'jetSel', 'onePho') )
+                phoselLoose = selection.all(*(lepSel, 'jetSel', 'loosePho') )
 
                 # 3. FILL HISTOGRAMS
                 #    fill photon_pt and photon_eta, using the tightPhotons array, from events passing the phosel selection
@@ -813,9 +814,29 @@ class TTGammaProcessor(processor.ProcessorABC):
             #  use the selection.all() method to select events passing the eleSel or muSel selection, 
             # and the 3-jet 0-btag selection, and have exactly one photon
       
+            phosel_e = selection.all(*('eleSel', "jetSel", 'onePho') )
+            phosel_mu = selection.all(*('muSel', "jetSel", 'onePho') )
+
             phosel_3j0t_e = selection.all(*('eleSel', "jetSel_3j0t", 'onePho') )
             phosel_3j0t_mu = selection.all(*('muSel', "jetSel_3j0t", 'onePho') )
             
+
+            output['photon_lepton_mass'].fill(dataset=dataset,
+                                              mass=ak.flatten(egammaMass[phosel_e]),
+                                              category=phoCategory[phosel_e],
+                                              lepFlavor='electron',
+                                              systematic=syst,
+                                              weight=evtWeight[phosel_e])
+                                        
+            output['photon_lepton_mass'].fill(dataset=dataset,
+                                              mass=ak.flatten(mugammaMass[phosel_mu]),
+                                              category=phoCategory[phosel_mu],
+                                              lepFlavor='muon',
+                                              systematic=syst,
+                                              weight=evtWeight[phosel_mu])
+
+
+
             #Fill the photon_lepton_mass histogram for events passing phosel_3j0t_e and phosel_3j0t_mu
             output['photon_lepton_mass_3j0t'].fill(dataset=dataset,
                                                    mass=ak.flatten(egammaMass[phosel_3j0t_e]),
